@@ -1,2 +1,1 @@
 # Gemini-Ai
-personal ai
