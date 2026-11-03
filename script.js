@@ -7,9 +7,8 @@ const deleteChatButton = document.querySelector("#delete-chat-button");
 let userMessage = null;
 let isResponseGenerating = false;
 
-// API configuration
-const API_KEY = "AIzaSyAz7Cc22lLRcLSR2XSF7lMot_91WxlXfYw"; // Your API key here
-const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${API_KEY}`;
+// The API key is kept on the server and is never shipped to the browser.
+const API_URL = "/api/gemini";
 
 // Load theme and chat data from local storage on page load
 const loadDataFromLocalstorage = () => {
@@ -58,30 +57,24 @@ const showTypingEffect = (text, textElement, incomingMessageDiv) => {
 
 // Fetch response from the API based on user message
 const generateAPIResponse = async (incomingMessageDiv) => {
-  const textElement = incomingMessageDiv.querySelector(".text"); // Getting text element
+  const textElement = incomingMessageDiv.querySelector(".text");
 
   try {
-    // Send a POST request to the API with the user's message
     const response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        contents: [{ 
-          role: "user", 
-          parts: [{ text: userMessage }] 
-        }] 
-      }),
+      body: JSON.stringify({ message: userMessage }),
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error.message);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "AI service is unavailable");
 
-    // Get the API response text and remove asterisks from it
-    const apiResponse = data?.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, '$1');
-    showTypingEffect(apiResponse, textElement, incomingMessageDiv); // Show typing effect
-  } catch (error) { // Handle error
+    const apiResponse = String(data.text || "").replace(/\\*\\*(.*?)\\*\\*/g, '$1');
+    if (!apiResponse.trim()) throw new Error("AI service returned an empty response");
+    showTypingEffect(apiResponse, textElement, incomingMessageDiv);
+  } catch (error) {
     isResponseGenerating = false;
-    textElement.innerText = error.message;
+    textElement.innerText = error instanceof Error ? error.message : "AI service is unavailable";
     textElement.parentElement.closest(".message").classList.add("error");
   } finally {
     incomingMessageDiv.classList.remove("loading");
